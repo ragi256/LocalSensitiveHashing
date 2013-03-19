@@ -1,15 +1,16 @@
 // searchID.cpp
-// ver 3.10
-// 3/4 update
+// ver 4.10
+// 3/19 update
 
-// ビットストリーム列を複数回シャッフル→ソートを繰り返し
-// 全IDとの組み合わせを検証し、近似IDを抜き出す
+// ビットストリーム列を複数回シャッフル→ソート
+// これを繰り返して全ID対全IDの近似度を調べ近似IDの組を抽出
 
 #include <iostream>
 #include <sstream>
-#include <iomanip>
 #include <fstream>
+#include <iomanip>
 #include <string>
+#include <cstring>
 #include <vector>
 #include <set>
 #include <utility>
@@ -22,107 +23,66 @@
 using namespace std;
 using namespace boost;
 
-typedef pair<string,string> Pair;
-typedef vector<string> v_str;
-typedef unordered_map<string,set<string> > near_map;
+typedef long long LL;
+typedef pair<LL,string> p_ID_hash;
+typedef vector<p_ID_hash> v_ID_hash;
+typedef unordered_map<LL,set<LL> > NearMap;
 
 inline void stop(void);
-inline void shuffle(vector<Pair> &setlist, mt19937 &r_engine, uniform_int<> &dst);
-inline void extractID(vector<Pair> &setlist, const int &ti, set<string> &nearlist);
+inline void readData(ifstream &input, v_ID_hash &datalist);
+inline string convertHex(string &hash);
+inline void makeList(v_ID_hash &datalist, mt19937 &r_engine, uniform_int<> &dst, v_ID_hash *near_list);
+void filterSycle(v_ID_hash &datalist, v_ID_hash *near_list, ofstream &output);
+inline void shuffle(v_ID_hash &datalist, mt19937 &r_engine, uniform_int<> &dst);
+inline void extractID(v_ID_hash &datalist, const int &ti, set<LL> &nearlist);
 
-struct str_pair_less{
-  bool operator()(const Pair &x, const Pair &y) const {
-    return x.second < y.second;
-  };
+struct hash_less{
+  bool operator()(const p_ID_hash &x, const p_ID_hash &y)const{
+    return x.second < y.second;};
 };
 
-int list_size,limit,nearness;
 
-int main(int argc, char **argv)
-{
+int TIME,NEARNESS,LIMIT;
+LL LIST_SIZE;
+
+int main(int argc, char **argv){
   ifstream input(argv[1]); //check.txt
   ofstream output(argv[2], ios::out); //ID.txt
-  string line, ID, target;
-  v_str ID_and_stream, target_list;
-  vector<Pair> setlist;
-  near_map result;
-  unsigned long int K,TIME, counter=0;
+  v_ID_hash datalist;
   time_t start_time,end_time;
-
-  cout << "評価回数と検索対象との近似幅を入力してください" << endl;
-  cin >> TIME; cin >> nearness;
+  
+  cerr << "評価回数と検索対象との近似幅を入力してください" << endl;
+  cin >> TIME; cin >> NEARNESS;
+  v_ID_hash sort_list[TIME];
 
   time(&start_time);
-  
-  cout << "ID,ストリーム読み込み処理開始" << endl;
-  while( input && getline(input, line)){ 
-    algorithm::split(ID_and_stream,line,is_any_of("\t"));
-    string bit_stream = ID_and_stream[1];
-    string bits="";
-    K = bit_stream.size();
-    for(int i=0; i< K/4; ++i){
-      string four_bits = bit_stream.substr(4*i,4);
-      short int cash=0x00;
-      for(int j=0; j<4; ++j){
-	if(four_bits[j]=='1') cash = cash<<1 | 0x01;
-	else if(four_bits[j]=='0') cash = cash <<1;
-      }
-      ostringstream oss;
-      oss << hex << cash;
-      string hex_str = oss.str();
-      bits += hex_str;
-      four_bits.clear();
-      cash=0x00;
-    }
-    Pair temp = make_pair(ID_and_stream[0],bits);
-    target_list.push_back(ID_and_stream[0]);
-    setlist.push_back(temp);
-  }
-  cout << "ID,ストリーム読み込み処理終了" << endl;
 
-  limit =setlist[0].second.size(); // 一回のシャッフルでどことどこをスワップするかを
+  cerr << "ID,ストリーム読み込み処理開始" <<endl;
+  readData(input,datalist);
+  cerr << "ID,ストリーム読み込み処理終了" << endl;
+
+  LIMIT = datalist[0].second.size(); // シャッフルする際スワップする箇所は
   mt19937 r_engine;
-  uniform_int<> dst(1, limit); // 16進ハッシュの桁数に依存する上限のランダムで決定する
-  list_size = setlist.size();
-  output << list_size << endl;
-  cerr << "list_size is " << list_size << endl;
-
-  cout << "近似ツイート抽出処理開始" << endl;
-  for(int i=0; i<TIME; ++i){ // 読み込んだstreamに対して処理
-    shuffle(setlist, r_engine, dst);
-    sort(setlist.begin(),setlist.end(), str_pair_less());
-    //    if((i+1)%10 == 0)
-    cout << "\t" << i+1 << "/" << TIME << "times finish" << endl;
-        
-    for(int i=0; i<list_size; ++i){
-      string target = setlist[i].first;
-      extractID(setlist, i, result[target]);
-    }
-  }
-
-  cout << "近似ツイート抽出処理終了" << endl;
-  int percent;
-  if(list_size%100!=0) percent = (list_size - list_size%100)/100;
-  else percent = list_size/100;    
-	
-  for(v_str::iterator target=target_list.begin(); target!=target_list.end(); ++target){
-    output << *target << "\n\n";
-    for(set<string>::iterator ID=result[*target].begin(), p_end=result[*target].end(); ID!=p_end; ++ID)
-      output << *ID << endl;
-    result[*target].clear();
-    //    copy(result[*target].begin(), result[*target].end(), ostream_iterator<string>(output,"\n"));
-    output << "\n";
-    ++counter;
-    if(counter%percent == 0) cerr << counter/percent << "% tweet finish" << endl;
-  }
-
-  ID_and_stream.clear();
-  target_list.clear();
-  setlist.clear();
-  result.clear();
+  uniform_int<> dst(1, LIMIT); // ハッシュの桁数を上限とするランダムで決める
+  LIST_SIZE = datalist.size();
+  output << LIST_SIZE << endl;
+  cerr << "全ツイート数: " << LIST_SIZE << endl;
   
+  cerr << "リスト生成処理開始" << endl;
+  makeList(datalist,r_engine,dst,sort_list);
+  cerr << "リスト生成処理終了" << endl;
+  
+  cerr << "近似ツイート抽出処理開始" << endl;
+  filterSycle(datalist,sort_list,output);
+  cerr << "近似ツイート抽出処理終了" << endl;
+
+  
+  input.close();
+  output.close();
+  datalist.clear();
+
   time(&end_time);
-  cerr << "所要時間:" << difftime(end_time, start_time) << "秒" << endl;  
+  cerr << "所要時間:" << difftime(end_time, start_time) << "秒" <<endl;
 }
 
 inline void stop(void){
@@ -131,28 +91,98 @@ inline void stop(void){
   exit(1);
 }
 
-inline void shuffle(vector<Pair> &setlist, mt19937 &r_engine, uniform_int<> &dst){
+inline void readData(ifstream &input, v_ID_hash &datalist){
+  string bits,line;
+  vector<string> ID_and_hash;
+  long long ll_ID;
+
+  while(input && getline(input, line)){
+    algorithm::split(ID_and_hash,line,is_any_of("\t"));
+    string &str_ID = ID_and_hash[0];
+    string &hash = ID_and_hash[1];
+    ll_ID = atoll(str_ID.c_str());
+    bits = convertHex(hash);
+    p_ID_hash temp = make_pair(ll_ID,bits);
+    datalist.push_back(temp);
+  }
+}
+
+inline string convertHex(string &hash){
+  string bits="",four_bits,hex_str;
+  short int size,cash;  ostringstream oss;
+  size = hash.size();
+  for(int i=0; i<size/4; ++i){
+    four_bits = hash.substr(4*i,4);
+    cash=0x00;
+    for(int j=0; j<4; ++j){
+      if(four_bits[j]=='1') cash = cash<<1 | 0x01;
+      else if(four_bits[j]=='0') cash = cash<<1;
+    }
+    oss << hex << cash;
+    hex_str = oss.str();
+    bits += hex_str;
+    four_bits.clear();
+    cash=0x00;
+  }
+  return bits;
+}
+
+inline void makeList(v_ID_hash &datalist, mt19937 &r_engine, uniform_int<> &dst, v_ID_hash *sort_list){
+  for(int i=0; i<TIME; ++i){
+    shuffle(datalist, r_engine, dst);
+    sort(datalist.begin(),datalist.end(),hash_less());
+    sort_list[i].assign(datalist.begin(), datalist.end());
+    cerr << "\t" << i+1 << "/" << TIME << "times finish" << endl;
+  }
+}
+
+inline void shuffle(v_ID_hash &datalist, mt19937 &r_engine, uniform_int<> &dst){
   int shuffle_times = dst(r_engine)/2; 
   int key1,key2;
   for(int j=0; j<shuffle_times; ++j){
     key1 = dst(r_engine);
     key2 = dst(r_engine);
-    for(int k=0; k < list_size; ++k){
-      string &temp=setlist[k].second;
+    for(int k=0; k < LIST_SIZE; ++k){
+      string &temp=datalist[k].second;
       swap(temp[key1],temp[key2]);
     }
   }
 }
 
-inline void extractID(vector<Pair> &setlist, const int &ti,set<string> &nearlist){
-  int index;
-  for(int point=0; point<nearness; ++point){
-    index = ti - (nearness - point);
-    if( index < 0 ); // pass
-    else nearlist.insert(setlist[index].first);
-    index = ti + (nearness - point);
-    if( (list_size-1) < index ); //pass
-    else nearlist.insert(setlist[index].first);
+void filterSycle(v_ID_hash &datalist, v_ID_hash *sort_list, ofstream &output){
+  set<LL> near_list;
+  int tenth = LIST_SIZE/10, counter = 0;
+  for(int i=0; i<LIST_SIZE; ++i){
+    LL &target = datalist[i].first;
+    for(int j=0; j<TIME; ++j){
+      for(int k=0; k<LIST_SIZE; ++k){
+	p_ID_hash &temp = sort_list[j].at(k);
+	if(temp.first==target){
+	  extractID(sort_list[j], k, near_list);
+	  break;
+	}
+      }
+    }
+    output << target << "\n\n";
+    copy(near_list.begin(),near_list.end(),ostream_iterator<LL>(output,"\n"));
+    output << "\n";
+    near_list.clear();
+
+    counter++;
+    if(counter%tenth==0)
+      cerr << counter/tenth << "0% tweet" << endl;
   }
 }
 
+
+inline void extractID(v_ID_hash &datalist, const int &ti,set<LL> &nearlist){
+  int index;
+  for(int point=0; point<NEARNESS; ++point){
+    index = ti - (NEARNESS - point);
+    if( index < 0 ); // pass
+    else nearlist.insert(datalist[index].first);
+    index = ti + (NEARNESS - point);
+    if( (LIST_SIZE-1) < index ); //pass
+    else nearlist.insert(datalist[index].first);
+  }
+}
