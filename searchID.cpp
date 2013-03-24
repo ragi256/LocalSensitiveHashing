@@ -29,12 +29,12 @@ typedef vector<p_ID_hash> v_ID_hash;
 typedef unordered_map<LL,set<LL> > NearMap;
 
 inline void stop(void);
-inline void readData(ifstream &input, v_ID_hash &datalist);
+inline void readData(ifstream &input);
 inline string convertHex(string &hash);
-inline void makeList(v_ID_hash &datalist, mt19937 &r_engine, uniform_int<> &dst, v_ID_hash *near_list);
-void filterSycle(v_ID_hash &datalist, v_ID_hash *near_list, ofstream &output);
-inline void shuffle(v_ID_hash &datalist, mt19937 &r_engine, uniform_int<> &dst);
-inline void extractID(v_ID_hash &datalist, const int &ti, set<LL> &nearlist);
+inline void makeList(mt19937 &r_engine, uniform_int<> &dst, v_ID_hash *shuffle_list, v_ID_hash *sort_list);
+void filterSycle(v_ID_hash *shuffle_list,v_ID_hash *sort_list, ofstream &output);
+inline void shuffle(mt19937 &r_engine, uniform_int<> &dst);
+inline void extractID(v_ID_hash &sort_list,const int &ti, set<LL> &nearlist);
 
 struct hash_less{
   bool operator()(const p_ID_hash &x, const p_ID_hash &y)const{
@@ -44,21 +44,21 @@ struct hash_less{
 
 int TIME,NEARNESS,LIMIT;
 LL LIST_SIZE;
+v_ID_hash datalist;
 
 int main(int argc, char **argv){
   ifstream input(argv[1]); //check.txt
   ofstream output(argv[2], ios::out); //ID.txt
-  v_ID_hash datalist;
   time_t start_time,end_time;
   
   cerr << "評価回数と検索対象との近似幅を入力してください" << endl;
   cin >> TIME; cin >> NEARNESS;
-  v_ID_hash sort_list[TIME];
+  v_ID_hash shuffle_list[TIME],sort_list[TIME];
 
   time(&start_time);
 
   cerr << "ID,ストリーム読み込み処理開始" <<endl;
-  readData(input,datalist);
+  readData(input);
   cerr << "ID,ストリーム読み込み処理終了" << endl;
 
   LIMIT = datalist[0].second.size(); // シャッフルする際スワップする箇所は
@@ -69,11 +69,11 @@ int main(int argc, char **argv){
   cerr << "全ツイート数: " << LIST_SIZE << endl;
   
   cerr << "リスト生成処理開始" << endl;
-  makeList(datalist,r_engine,dst,sort_list);
+  makeList(r_engine,dst,shuffle_list,sort_list);
   cerr << "リスト生成処理終了" << endl;
   
   cerr << "近似ツイート抽出処理開始" << endl;
-  filterSycle(datalist,sort_list,output);
+  filterSycle(shuffle_list,sort_list,output);
   cerr << "近似ツイート抽出処理終了" << endl;
 
   
@@ -91,7 +91,7 @@ inline void stop(void){
   exit(1);
 }
 
-inline void readData(ifstream &input, v_ID_hash &datalist){
+inline void readData(ifstream &input){
   string bits,line;
   vector<string> ID_and_hash;
   long long ll_ID;
@@ -127,16 +127,18 @@ inline string convertHex(string &hash){
   return bits;
 }
 
-inline void makeList(v_ID_hash &datalist, mt19937 &r_engine, uniform_int<> &dst, v_ID_hash *sort_list){
+inline void makeList(mt19937 &r_engine, uniform_int<> &dst,
+		     v_ID_hash *shuffle_list, v_ID_hash *sort_list){
   for(int i=0; i<TIME; ++i){
-    shuffle(datalist, r_engine, dst);
-    sort(datalist.begin(),datalist.end(),hash_less());
+    shuffle(r_engine, dst);
+    shuffle_list[i].assign(datalist.begin(),datalist.end());
     sort_list[i].assign(datalist.begin(), datalist.end());
+    sort(sort_list[i].begin(),sort_list[i].end(),hash_less());
     cerr << "\t" << i+1 << "/" << TIME << "times finish" << endl;
   }
 }
 
-inline void shuffle(v_ID_hash &datalist, mt19937 &r_engine, uniform_int<> &dst){
+inline void shuffle(mt19937 &r_engine, uniform_int<> &dst){
   int shuffle_times = dst(r_engine)/2; 
   int key1,key2;
   for(int j=0; j<shuffle_times; ++j){
@@ -149,40 +151,35 @@ inline void shuffle(v_ID_hash &datalist, mt19937 &r_engine, uniform_int<> &dst){
   }
 }
 
-void filterSycle(v_ID_hash &datalist, v_ID_hash *sort_list, ofstream &output){
+void filterSycle(v_ID_hash *shuffle_list,v_ID_hash *sort_list, ofstream &output){
   set<LL> near_list;
   int tenth = LIST_SIZE/10, counter = 0;
   for(int i=0; i<LIST_SIZE; ++i){
-    LL &target = datalist[i].first;
-    for(int j=0; j<TIME; ++j){
-      for(int k=0; k<LIST_SIZE; ++k){
-	p_ID_hash &temp = sort_list[j].at(k);
-	if(temp.first==target){
-	  extractID(sort_list[j], k, near_list);
-	  break;
-	}
+      for(int j=0; j<TIME; ++j){
+	  v_ID_hash::iterator target = 
+	      lower_bound(sort_list[j].begin(), sort_list[j].end(), shuffle_list[j][i]);
+	  extractID(sort_list[j], target-sort_list[j].begin(), near_list);
       }
-    }
-    output << target << "\n\n";
-    copy(near_list.begin(),near_list.end(),ostream_iterator<LL>(output,"\n"));
-    output << "\n";
-    near_list.clear();
+      output << shuffle_list[0][i].first << "\n\n";
+      copy(near_list.begin(), near_list.end(), ostream_iterator<LL>(output,"\n"));
+      output << "\n";
+      near_list.clear();
 
-    counter++;
-    if(counter%tenth==0)
-      cerr << counter/tenth << "0% tweet" << endl;
+      counter++;
+      if(counter%tenth==0)
+	  cerr << counter/tenth << "0% tweet" << endl;
   }
 }
 
 
-inline void extractID(v_ID_hash &datalist, const int &ti,set<LL> &nearlist){
+inline void extractID(v_ID_hash &sort_list, const int &ti,set<LL> &nearlist){
   int index;
   for(int point=0; point<NEARNESS; ++point){
     index = ti - (NEARNESS - point);
     if( index < 0 ); // pass
-    else nearlist.insert(datalist[index].first);
+    else nearlist.insert(sort_list[index].first);
     index = ti + (NEARNESS - point);
     if( (LIST_SIZE-1) < index ); //pass
-    else nearlist.insert(datalist[index].first);
+    else nearlist.insert(sort_list[index].first);
   }
 }
