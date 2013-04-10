@@ -1,6 +1,6 @@
 // convertStream.cpp
-// ver 2.30
-// 2/26 update
+// ver 2.31
+// 4/10 update
 
 // 整形されたデータからビットストリームを作成
 // ID, streamの2ブロックに分けて出力
@@ -27,8 +27,6 @@ typedef unordered_map<string, double> word_vector;
 enum line_flags {ID_line, element_line, words_line, EOD};
 
 inline void addResult(int n, double element, double *result, vector< double* > r_vector);
-
-
 
 int main(int argc, char **argv)
 {
@@ -75,13 +73,6 @@ int main(int argc, char **argv)
 	  result[i] += element * r_vector[i][*it];
 	} 
       }
-      
-      /********* デバッグ用箇所 ********/
-      // cout <<endl<< "==================================" <<endl;
-      // for(int i=0; i<K; ++i)
-      // 	cout << setprecision(12) << fixed << result[i] << endl;      
-      // cout <<endl<< "==================================" <<endl;
-      /********* デバッグ用箇所 ********/
       
       ofs << ID << "\t";      
       for(int i=0; i<K; ++i){

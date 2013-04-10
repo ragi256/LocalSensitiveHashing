@@ -1,6 +1,6 @@
 // searchID.cpp
-// ver 4.10
-// 3/19 update
+// ver 4.11
+// 4/10 update
 
 // ビットストリーム列を複数回シャッフル→ソート
 // これを繰り返して全ID対全IDの近似度を調べ近似IDの組を抽出
@@ -41,7 +41,6 @@ struct hash_less{
     return x.second < y.second;};
 };
 
-
 int TIME,NEARNESS,LIMIT;
 LL LIST_SIZE;
 v_ID_hash datalist;
@@ -75,7 +74,6 @@ int main(int argc, char **argv){
   cerr << "近似ツイート抽出処理開始" << endl;
   filterSycle(shuffle_list,sort_list,output);
   cerr << "近似ツイート抽出処理終了" << endl;
-
   
   input.close();
   output.close();
@@ -171,8 +169,12 @@ void filterSycle(v_ID_hash *shuffle_list,v_ID_hash *sort_list, ofstream &output)
   }
 }
 
+<<<<<<< HEAD
 
 inline void extractID(v_ID_hash &sort_list, const int &ti,set<LL> &nearlist){
+=======
+inline void extractID(v_ID_hash &datalist, const int &ti,set<LL> &nearlist){
+>>>>>>> add CompareTestProgram(ver.spread) and minor change
   int index;
   for(int point=0; point<NEARNESS; ++point){
     index = ti - (NEARNESS - point);

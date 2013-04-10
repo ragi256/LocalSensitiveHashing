@@ -57,7 +57,6 @@ int main(int argc, char **argv)
   cout << "right  " << r_size << endl;
   cout << "system " << s_size << endl;
   cout << "r and s" << rs_size << endl;
-    
 
   cout << "+++++++++++++++++++++++++++++++++" << endl;
   cout << "  Reacall:" << setprecision(12) << fixed << recall << endl;

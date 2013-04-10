@@ -1,9 +1,8 @@
 // searchID.cpp
-// ver 2.30
-// 2/26 update
+// ver 2.31
+// 4/10 update
 
 // searchIDにて作成したIDリストから検索IDとのコサイン距離を計算
-
 // 検索対象が固定 一対多
 
 #include <iostream>
@@ -65,7 +64,6 @@ int main(int argc, char **argv)
     getline(ifs1,target);
     getline(ifs1,rubbish);// target直後にある空行
     while(ifs1 && getline(ifs1,line) && !line.empty()){
-      //      cout << line << endl;
       ID_list.push_back(line);
     }
     
@@ -95,7 +93,6 @@ int main(int argc, char **argv)
 	checker = EOD;
       }
       else if(checker == EOD){ //終端処理
-	//	cout << "check4";
 	if(search_flag == MatchIDlist){ //IDリスト内のID
 	  Set temp = setTweet(ID,element,words);
 	  extract_set.push_back(temp);
@@ -120,10 +117,7 @@ int main(int argc, char **argv)
 	  tweet->distance += it->second * itv->second;
       }
     }
-    
-    //    cout << "sorting now" << endl;
     sort(extract_set.begin(), extract_set.end(), GreaterDistance);
-    
 
     const int RENGE = min(ID_counter,30);
     for(int i=0; i<RENGE; ++i){
