@@ -169,12 +169,7 @@ void filterSycle(v_ID_hash *shuffle_list,v_ID_hash *sort_list, ofstream &output)
   }
 }
 
-<<<<<<< HEAD
-
 inline void extractID(v_ID_hash &sort_list, const int &ti,set<LL> &nearlist){
-=======
-inline void extractID(v_ID_hash &datalist, const int &ti,set<LL> &nearlist){
->>>>>>> add CompareTestProgram(ver.spread) and minor change
   int index;
   for(int point=0; point<NEARNESS; ++point){
     index = ti - (NEARNESS - point);
