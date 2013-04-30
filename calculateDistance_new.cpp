@@ -31,9 +31,12 @@ typedef boost::unordered_map<string,vector<string> > IDsetMap;
 const double THRESHOLD_VALUE = 0.6;
 
 
-class Tweet:public std::binary_function <const Tweet &,const Tweet &,bool>{
+class Tweet{//:public std::binary_function <const Tweet &,const Tweet &,bool>{
 public:
   string ID;
+  Tweet() {}
+  Tweet(const string& _id) : ID(_id) {}
+
   str_dbl_map words_vector;
   inline void getID(string ID);
   void getWordVector(double element,vector<string> words);
@@ -125,9 +128,9 @@ void getTweet(TARGET &target_tweets,SIMILAR &similar_tweets,ifstream &inputLog){
       
     case ID_LINE:{
       ID = line;
-      Tweet temp; temp.ID = line;
+      //Tweet temp; temp.ID = line;
       std::pair<SIMILAR::iterator,SIMILAR::iterator> it_pair;
-      it_pair= std::equal_range(similar_tweets.begin(),similar_tweets.end(),temp);
+      it_pair= std::equal_range(similar_tweets.begin(),similar_tweets.end(),Tweet(ID));
       const int s_count = (int)distance(it_pair.first,it_pair.second);
       if(s_count)
 	search_flag = MATCH_SIMILARITY;
